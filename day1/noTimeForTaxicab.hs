@@ -12,25 +12,56 @@ main = do
     handle <- openFile "data.txt" ReadMode
     contents <- hGetContents handle
     --putStr contents
-    let dist = calcDist contents
+    -- let dist = calcDist contents True -- For part 1
+    let dist = calcDist contents False -- For part 2
     print dist
     hClose handle
 
--- String -> Integral
--- Function to calculate distance traveled given a string of directions
-calcDist ::  String -> Integer
-calcDist ds =
-    let (x, y) = simFullWalk (words ds) 'N' (0,0)
+-- String Bool -> Integral
+-- Function to calculate distance traveled given a string of directions, false prevents overlaps
+calcDist ::  String -> Bool -> Integer
+calcDist ds overlaps =
+    let (x, y, overlapped, visited) = simFullWalk (words ds) 'N' (0,0, False, Set.singleton (0, 0)) overlaps
     in abs x + abs y
 
--- [String] Char (Integral, Integral) -> (Integral, Integral)
+-- [String] Char (Integral, Integral, Bool) Set(Integer, Integer) Bool -> (Integral, Integral, Bool)
 -- Function to simulate a full walk based on an array of directions, current pos, and direction, 
--- returning final position
-simFullWalk :: [String] -> Char -> (Integer, Integer) -> (Integer, Integer)
-simFullWalk [] _ loc = loc
-simFullWalk (d:ds) dir loc = 
+-- returning final position. Bool overlap sets whether overlaps are allowed
+simFullWalk :: [String] -> Char -> (Integer, Integer, Bool, Set.Set(Integer, Integer)) -> Bool -> (Integer, Integer, Bool, Set.Set(Integer, Integer))
+simFullWalk [] _ loc _ = loc
+simFullWalk _ _ (x, y, True, visited) False = (x, y, True, visited) -- If we aren't allowing overlaps + soln found, return it
+simFullWalk (d:ds) dir loc overlap = 
     let (newDir, moveDist) = newMove d dir
-    in simFullWalk ds newDir (simWalk newDir moveDist loc)
+    in simFullWalk ds newDir (visitPoints loc overlap moveDist newDir) overlap
+
+-- (Integral, Integral, Bool) Bool Integral Char Set(Integer, Integer) -> (Integral, Integral, Bool, Set(Integer, Integer))
+-- Visits points along a direction
+visitPoints :: (Integer, Integer, Bool, Set.Set (Integer, Integer)) -> Bool -> Integer -> Char -> (Integer, Integer, Bool, Set.Set (Integer, Integer))
+visitPoints (x,y,True,visited) False _ _ = (x,y,True,visited) -- Overlap when overlap is not allowed
+visitPoints (x,y,f,visited) overlap 0 dir = (x,y,f,visited) -- Finished our move
+visitPoints (x,y,f,visited) overlap dRem 'N' =
+    let (xNew, yNew, prevVisited, newVisited) = visitPoint (x, y + 1) visited
+    in visitPoints (xNew, yNew, prevVisited, newVisited) overlap (dRem - 1) 'N'
+visitPoints (x,y,f, visited) overlap dRem 'W' =
+    let (xNew, yNew, prevVisited, newVisited) = visitPoint (x - 1, y) visited
+    in visitPoints (xNew, yNew, prevVisited, newVisited) overlap (dRem - 1) 'W'
+visitPoints (x,y,f, visited) overlap dRem 'E' =
+    let (xNew, yNew, prevVisited, newVisited) = visitPoint (x + 1, y) visited
+    in visitPoints (xNew, yNew, prevVisited, newVisited) overlap (dRem - 1) 'E'
+visitPoints (x,y,f, visited) overlap dRem 'S' =
+    let (xNew, yNew, prevVisited, newVisited) = visitPoint (x, y - 1) visited
+    in visitPoints (xNew, yNew, prevVisited, newVisited) overlap (dRem - 1) 'S'
+visitPoints _ _ _ _ = error "Incorrect direction passed to function"
+
+-- (Integral, Integral) Set(Integer, Integer) -> (Integral, Integral, Bool, Set(Integer, Integer))
+-- Checks to see if a point has already been visited, adds to visited set if not. Sets flag if so
+visitPoint :: (Integer, Integer) -> Set.Set(Integer, Integer) -> (Integer, Integer, Bool, Set.Set(Integer, Integer))
+visitPoint (newX, newY) visited =
+    if Set.member (newX, newY) visited
+        then (newX, newY, True, visited)
+    else let newVisited = Set.insert (newX, newY) visited
+    in (newX, newY, False, newVisited)
+
 
 -- String String -> (String, Integral)
 -- Function to return a new direction and dist to move based on current direction and next directions
@@ -50,13 +81,3 @@ newDirection 'S' 'R' = 'W'
 newDirection 'S' 'L' = 'E'
 newDirection 'W' 'R' = 'N'
 newDirection 'W' 'L' = 'S'
-
-
--- Char (Integral, Integral) -> (Integral, Integral)
--- Function to calculate new position based on current direction and distance to move
-simWalk :: (Integral a) => Char -> a -> (a, a) -> (a, a)
-simWalk 'N' d (x,y) = (x, y + d)
-simWalk 'W' d (x,y) = (x - d, y)
-simWalk 'E' d (x,y) = (x + d, y)
-simWalk 'S' d (x,y) = (x, y - d)
-simWalk _ _ _ = error "Incorrect direction passed to function"
