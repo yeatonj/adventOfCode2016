@@ -1,3 +1,11 @@
+-- File for manipulating MD5 hashses to find the correct hash
+-- Written by J. Yeaton for AOC 2016 (written in 2023)
+-- Written on 2/28/23
+
+-- Compile with "ghc --make ChessGame"
+-- Run with ./ChessGame
+-- GHCI with ghci ChessGame.hs 
+
 import Data.Digest.Pure.MD5
 import qualified Data.ByteString.Lazy.Char8 as C
 import System.IO
